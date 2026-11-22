@@ -26,8 +26,10 @@ export function updateBauzeit(levels, options = {}) {
   const nowIso = now.toISOString();
   const data = readFile();
   if (!data.levels || typeof data.levels !== 'object') data.levels = {};
+  const frozen = process.env.BAUZEIT_FEST === '1';
   if (typeof data.start !== 'string' || Number.isNaN(Date.parse(data.start))) {
     data.start = nowIso;
+    if (!frozen) writeFile(data);
   }
 
   const reached = (() => {
@@ -46,7 +48,6 @@ export function updateBauzeit(levels, options = {}) {
     previous = n;
   }
 
-  const frozen = process.env.BAUZEIT_FEST === '1';
   if (reached > previous) {
     const base = data.levels[String(previous)];
     const baseTime =

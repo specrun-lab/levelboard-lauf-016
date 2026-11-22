@@ -30,80 +30,101 @@ export default function App() {
     const controller = new AbortController();
 
     const loadFile = async () => {
+      let response: Response;
       try {
         setState('loading');
-        const response = await fetch('/results.json', { cache: 'no-store', signal: controller.signal });
-        if (disposed) return;
-        if (response.status === 404) {
-          setData(null);
-          setState('missing');
-          return;
-        }
-        if (response.ok && isHtmlResponse(response)) {
-          setData(null);
-          setState('missing');
-          return;
-        }
-        if (!response.ok) {
-          setData(null);
-          setState('invalid');
-          return;
-        }
-        const parsed = parseResults(await response.json());
-        if (disposed) return;
-        if (!parsed) {
-          setData(null);
-          setState('invalid');
-          return;
-        }
-        setData(parsed);
-        setState('ok');
+        response = await fetch('/results.json', { cache: 'no-store', signal: controller.signal });
       } catch {
         if (disposed) return;
         setData(null);
         setState('missing');
+        return;
       }
-    };
-
-    const poll = async () => {
+      if (disposed) return;
+      if (response.status === 404) {
+        setData(null);
+        setState('missing');
+        return;
+      }
+      if (response.ok && isHtmlResponse(response)) {
+        setData(null);
+        setState('missing');
+        return;
+      }
+      if (!response.ok) {
+        setData(null);
+        setState('invalid');
+        return;
+      }
+      let value: unknown;
       try {
-        const response = await fetch('/api/levels', { cache: 'no-store', signal: controller.signal });
-        if (disposed) return;
-        if (!response.ok || isHtmlResponse(response)) {
-          setData(null);
-          setUsage(null);
-          setState('unavailable');
-        } else {
-          const parsed = parseResults(await response.json());
-          if (disposed) return;
-          if (!parsed) {
-            setData(null);
-            setUsage(null);
-            setState('invalid');
-          } else {
-            let parsedUsage: Usage | null = null;
-            try {
-              const usageResponse = await fetch('/api/usage', {
-                cache: 'no-store',
-                signal: controller.signal,
-              });
-              if (usageResponse.ok && !isHtmlResponse(usageResponse)) {
-                parsedUsage = parseUsage(await usageResponse.json());
-              }
-            } catch {
-              parsedUsage = null;
-            }
-            if (disposed) return;
-            setData(parsed);
-            setUsage(parsedUsage);
-            setState('ok');
-          }
-        }
+        value = await response.json();
       } catch {
         if (disposed) return;
         setData(null);
+        setState('invalid');
+        return;
+      }
+      if (disposed) return;
+      const parsed = parseResults(value);
+      if (!parsed) {
+        setData(null);
+        setState('invalid');
+        return;
+      }
+      setData(parsed);
+      setState('ok');
+    };
+
+    const poll = async () => {
+      let response: Response;
+      try {
+        response = await fetch('/api/levels', { cache: 'no-store', signal: controller.signal });
+      } catch {
+        if (!disposed) {
+          setData(null);
+          setUsage(null);
+          setState('unavailable');
+        }
+        if (!disposed) timer = setTimeout(poll, 5000);
+        return;
+      }
+      if (disposed) return;
+      if (!response.ok || isHtmlResponse(response)) {
+        setData(null);
         setUsage(null);
         setState('unavailable');
+      } else {
+        let value: unknown;
+        try {
+          value = await response.json();
+        } catch {
+          value = undefined;
+        }
+        if (disposed) return;
+        const parsed = parseResults(value);
+        if (!parsed) {
+          setData(null);
+          setUsage(null);
+          setState('invalid');
+        } else {
+          let parsedUsage: Usage | null = null;
+          try {
+            const usageResponse = await fetch('/api/usage', {
+              cache: 'no-store',
+              signal: controller.signal,
+            });
+            if (usageResponse.ok && !isHtmlResponse(usageResponse)) {
+              parsedUsage = parseUsage(await usageResponse.json());
+            }
+          } catch {
+            parsedUsage = null;
+          }
+          if (disposed) return;
+          setData(parsed);
+          setUsage(parsedUsage);
+          setState('ok');
+        }
       }
       if (!disposed) {
         timer = setTimeout(poll, 5000);

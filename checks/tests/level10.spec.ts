@@ -63,12 +63,12 @@ test.describe('level-10', () => {
 
     const bauzeit = readBauzeit();
     const now = new Date().toISOString();
-    const build: Record<string, { passedAt: string; buildS: number }> = {};
+    const build: Record<string, { passedAt: string; buildS?: number; inLevel?: number }> = {};
     for (let level = 1; level <= 10; level += 1) {
       const entry = bauzeit.levels?.[String(level)];
       build[String(level)] =
-        entry && entry.buildS !== undefined
-          ? { passedAt: now, buildS: entry.buildS }
+        entry && (entry.buildS !== undefined || entry.inLevel !== undefined)
+          ? entry
           : { passedAt: now, buildS: 30 + level };
     }
 
